@@ -1,96 +1,102 @@
 package id.ergun.hellokotlin
 
-import android.graphics.Color
 import android.os.Bundle
-import android.support.v4.content.ContextCompat
+import android.support.v4.widget.SwipeRefreshLayout
 import android.support.v7.app.AppCompatActivity
+import android.support.v7.widget.LinearLayoutManager
+import android.support.v7.widget.RecyclerView
+import android.view.View
+import android.widget.*
+import com.google.gson.Gson
 import id.ergun.hellokotlin.R.color.colorAccent
 import org.jetbrains.anko.*
-import org.jetbrains.anko.design.snackbar
-import org.jetbrains.anko.sdk25.coroutines.onClick
+import org.jetbrains.anko.recyclerview.v7.recyclerView
+import org.jetbrains.anko.support.v4.onRefresh
+import org.jetbrains.anko.support.v4.swipeRefreshLayout
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), MainView {
+
+    private lateinit var listTeam: RecyclerView
+    private lateinit var progressBar: ProgressBar
+    private lateinit var swipeRefresh: SwipeRefreshLayout
+    private lateinit var spinner: Spinner
+
+    private var teams: MutableList<Team> = mutableListOf()
+    private lateinit var presenter: MainPresenter
+    private lateinit var adapter: MainAdapter
+
+    private lateinit var leagueName: String
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        MainActivityUI().setContentView(this)
-    }
-}
 
-class MainActivityUI : AnkoComponent<MainActivity> {
-    override fun createView(ui: AnkoContext<MainActivity>) = with(ui) {
-        verticalLayout {
-            padding = dip(16)
-            val name = editText {
-                hint = "What's your name?"
-            }
+        linearLayout {
+            lparams (width = matchParent, height = wrapContent)
+            orientation = LinearLayout.VERTICAL
+            topPadding = dip(16)
+            leftPadding = dip(16)
+            rightPadding = dip(16)
 
-            button("Say Hello"){
-                backgroundColor = ContextCompat.getColor(context, colorAccent)
-                textColor = Color.WHITE
-                onClick { toast("Hello, ${name.text}!") }
-            }.lparams(width = matchParent){
-                topMargin = dip(5)
-            }
+            spinner = spinner ()
+            swipeRefresh = swipeRefreshLayout {
+                setColorSchemeResources(colorAccent,
+                        android.R.color.holo_green_light,
+                        android.R.color.holo_orange_light,
+                        android.R.color.holo_red_light)
 
-            button("Show Alert"){
-                backgroundColor = ContextCompat.getColor(context, colorAccent)
-                textColor = Color.WHITE
-                onClick {
-                    alert("Happy Coding!", "Hello, ${name.text}!") {
-                        yesButton { toast("Oh…") }
-                        noButton {}
-                    }.show()
-                }
-            }.lparams(width = matchParent){
-                topMargin = dip(5)
-            }
+                relativeLayout{
+                    lparams (width = matchParent, height = wrapContent)
 
-            button("Show Selector"){
-                backgroundColor = ContextCompat.getColor(context, colorAccent)
-                textColor = Color.WHITE
+                    listTeam = recyclerView {
+                        lparams (width = matchParent, height = wrapContent)
+                        layoutManager = LinearLayoutManager(ctx)
+                    }
 
-                onClick {
-                    val club = listOf("Barcelona", "Real Madrid", "Bayern Munchen", "Liverpool")
-                    selector("Hello, ${name.text}! What's football club do you love?", club) { _, i ->
-                        toast("So you love ${club[i]}, right?")
+                    progressBar = progressBar {
+                    }.lparams{
+                        centerHorizontally()
                     }
                 }
-            }.lparams(width = matchParent){
-                topMargin = dip(5)
             }
-
-            button("Show Snackbar"){
-                backgroundColor = ContextCompat.getColor(context, colorAccent)
-                textColor = Color.WHITE
-                onClick {
-                    snackbar(name, "Hello, ${name.text}!")
-                }
-            }.lparams(width = matchParent){
-                topMargin = dip(5)
-            }
-
-            button("Show Progress Bar"){
-                backgroundColor = ContextCompat.getColor(context, colorAccent)
-                textColor = Color.WHITE
-                onClick {
-                    indeterminateProgressDialog("Hello, ${name.text}! Please wait...").show()
-                }
-            }.lparams(width = matchParent){
-                topMargin = dip(5)
-            }
-
-            button("Go to Second Activity"){
-                backgroundColor = ContextCompat.getColor(context, colorAccent)
-                textColor = Color.WHITE
-                onClick {
-                    startActivity<SecondActivity>("name" to "${name.text}")
-                }
-            }.lparams(width = matchParent){
-                topMargin = dip(5)
-            }
-
         }
 
+        val spinnerItems = resources.getStringArray(R.array.league)
+        val spinnerAdapter = ArrayAdapter(ctx, android.R.layout.simple_spinner_dropdown_item, spinnerItems)
+        spinner.adapter = spinnerAdapter
+
+        spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View, position: Int, id: Long) {
+                leagueName = spinner.selectedItem.toString()
+                presenter.getTeamList(leagueName)
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>) {}
+        }
+
+        adapter = MainAdapter(teams)
+        listTeam.adapter = adapter
+
+        val request = ApiRepository()
+        val gson = Gson()
+        presenter = MainPresenter(this, request, gson)
+
+        swipeRefresh.onRefresh {
+            presenter.getTeamList(leagueName)
+        }
+    }
+
+    override fun showLoading() {
+        progressBar.visible()
+    }
+
+    override fun hideLoading() {
+        progressBar.invisible()
+    }
+
+    override fun showTeamList(data: List<Team>) {
+        swipeRefresh.isRefreshing = false
+        teams.clear()
+        teams.addAll(data)
+        adapter.notifyDataSetChanged()
     }
 }
