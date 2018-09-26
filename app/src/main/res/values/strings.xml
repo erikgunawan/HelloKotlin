@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">HelloKotlin</string>
+    <string name="teams">Teams</string>
+    <string name="favorites">Favorites</string>
 
     <string-array name="club_name">
         <item>Barcelona FC</item>
