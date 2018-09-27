@@ -1,8 +1,9 @@
 package id.ergun.hellokotlin
 
 import com.google.gson.Gson
-import org.jetbrains.anko.doAsync
-import org.jetbrains.anko.uiThread
+import kotlinx.coroutines.experimental.android.UI
+import kotlinx.coroutines.experimental.async
+import org.jetbrains.anko.coroutines.experimental.bg
 
 class TeamsPresenter(private val teamsView: TeamsView,
                      private val apiRepository: ApiRepository,
@@ -10,16 +11,15 @@ class TeamsPresenter(private val teamsView: TeamsView,
 
     fun getTeamList(league: String?) {
         teamsView.showLoading()
-        doAsync {
-            val data = gson.fromJson(apiRepository
-                    .doRequest(ApiRepository.TheSportDBApi.getTeams(league)),
-                    TeamResponse::class.java
-            )
-
-            uiThread {
-                teamsView.hideLoading()
-                teamsView.showTeamList(data.teams)
+        async(UI) {
+            val data = bg {
+                gson.fromJson(apiRepository
+                        .doRequest(ApiRepository.TheSportDBApi.getTeams(league)),
+                        TeamResponse::class.java
+                )
             }
+            teamsView.showTeamList(data.await().teams)
+            teamsView.hideLoading()
         }
     }
 }
