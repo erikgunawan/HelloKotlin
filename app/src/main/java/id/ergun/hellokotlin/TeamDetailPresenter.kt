@@ -14,7 +14,7 @@ class TeamDetailPresenter(private val view: TeamDetailView,
         async(UI) {
             val data = bg {
                 gson.fromJson(apiRepository
-                        .doRequest(ApiRepository.TheSportDBApi.getTeamDetail(teamId)),
+                        .doRequest(TheSportDBApi.getTeamDetail(teamId)),
                         TeamResponse::class.java
                 )
             }
